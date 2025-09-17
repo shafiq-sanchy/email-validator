@@ -41,6 +41,9 @@ PUBLIC_DOMAINS = {
     "icloud.com", "protonmail.com", "zoho.com", "yandex.com", "gmx.com"
 }
 
+# Maximum length for the username part of the email
+MAX_USERNAME_LENGTH = 15
+
 # ==============================
 # EMAIL VALIDATION HELPERS
 # ==============================
