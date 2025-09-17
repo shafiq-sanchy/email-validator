@@ -17,14 +17,13 @@ from st_copy_to_clipboard import st_copy_to_clipboard
 # ==============================
 st.set_page_config(layout="wide", page_title="Advanced Email Validator")
 
-# Cleaned up and organized exclusion lists
+# Exclusion lists
 EXCLUDED_KEYWORDS = [
     "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@",
     "privacy@", "security@", "abuse@", "noreply@", "no-reply@", "unsubscribe@",
     "newsletter@", "feedback@", "test@", "demo@", "example@", "dummy@", "john.doe@"
 ]
 
-# Using a set for faster lookups and to remove duplicates
 EXCLUDED_DOMAINS_SUBSTR = set([
     "example.com", "test.com", "invalid.com", "localhost", "sentry", "wixpress",
     "sentry.wixpress.com", "latofonts", "address", "yourdomain", "err.abtm.io",
@@ -36,18 +35,44 @@ SKIP_EXTENSIONS = set([
     ".zip", ".tar.gz", ".css", ".js", "the.benhawy", ".domain", "example"
 ])
 
-# Domains to ignore for keyword and domain-count rules
+# Domains with special normalization rules
 PUBLIC_DOMAINS = {
     "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com",
     "icloud.com", "protonmail.com", "zoho.com", "yandex.com", "gmx.com"
 }
+DOMAINS_WITH_PLUS_ALIASING = {
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com",
+    "icloud.com", "me.com", "mac.com"
+}
+DOMAINS_WITH_DOT_INSENSITIVITY = {"gmail.com", "googlemail.com"}
 
-# Maximum length for the username part of the email
 MAX_USERNAME_LENGTH = 15
 
 # ==============================
 # EMAIL VALIDATION HELPERS
 # ==============================
+
+def normalize_email(email):
+    """
+    Normalizes an email address based on provider-specific rules
+    (dot insensitivity for Gmail, plus aliasing for several providers).
+    """
+    try:
+        email = email.lower().strip()
+        username, domain = email.split('@', 1)
+
+        # Step 1: Handle plus aliasing for supported domains
+        if domain in DOMAINS_WITH_PLUS_ALIASING:
+            username = username.split('+', 1)[0]
+
+        # Step 2: Handle dot insensitivity for supported domains
+        if domain in DOMAINS_WITH_DOT_INSENSITIVITY:
+            username = username.replace('.', '')
+
+        return f"{username}@{domain}"
+    except Exception:
+        # If email format is invalid (e.g., no @), return it as is to be caught later
+        return email
 
 def is_valid_syntax(email):
     """Check for basic email syntax validity."""
@@ -56,36 +81,24 @@ def is_valid_syntax(email):
 
 def get_exclusion_reason(email):
     """
-    Checks if an email matches exclusion criteria and returns the reason.
-    Returns a string reason if excluded, otherwise None.
+    Checks if a normalized email matches exclusion criteria and returns the reason.
     """
     email_lower = email.lower()
-    
-    # Safely split into username and domain
-    try:
-        username, domain = email_lower.split('@', 1)
-    except ValueError:
-        return "Invalid format (no @ symbol)" # Should be caught by syntax check, but safe to have
+    username, domain = email_lower.split('@', 1)
 
-    # Rule 1: Username length
     if len(username) > MAX_USERNAME_LENGTH:
         return f"Flagged: Username > {MAX_USERNAME_LENGTH} chars"
 
-    # Rule 2: Excluded keywords (ONLY for non-public domains) - THIS IS THE FIX
     if domain not in PUBLIC_DOMAINS:
         for keyword in EXCLUDED_KEYWORDS:
             if keyword in email_lower:
                 return f"Flagged by keyword: '{keyword.strip('@')}'"
 
-    # Rule 3: Excluded domains
-    for sub in EXCLUDED_DOMAINS_SUBSTR:
-        if sub in domain:
-            return f"Flagged by domain rule: '{sub}'"
+    if any(sub in domain for sub in EXCLUDED_DOMAINS_SUBSTR):
+        return f"Flagged by domain rule"
 
-    # Rule 4: Excluded file extensions
-    for ext in SKIP_EXTENSIONS:
-        if email_lower.endswith(ext):
-            return f"Flagged by file extension: '{ext}'"
+    if any(email_lower.endswith(ext) for ext in SKIP_EXTENSIONS):
+        return f"Flagged by file extension"
             
     return None
 
@@ -99,7 +112,7 @@ def has_mx_record(domain):
         return False
 
 def smtp_check(email):
-    """Perform SMTP check. Treat timeouts/blocks as inconclusive but likely valid."""
+    """Perform SMTP check on the normalized email."""
     domain = email.split('@')[1]
     try:
         mx_records = dns.resolver.resolve(domain, 'MX')
@@ -115,14 +128,11 @@ def smtp_check(email):
                 return "Mailbox Not Found"
             else:
                 return "Valid (SMTP Check Inconclusive)"
-    except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, socket.timeout):
-        return "Valid (SMTP Server Busy)"
     except Exception:
         return "Valid (SMTP Check Failed)"
 
 def validate_email(email):
     """Comprehensive email validation returning a detailed status."""
-    email = email.strip()
     if not is_valid_syntax(email):
         return {"email": email, "status": "Invalid Syntax"}
     domain = email.split('@')[-1]
@@ -149,7 +159,7 @@ def limit_emails_per_domain(emails, max_per_domain=2):
 # STREAMLIT UI
 # ==============================
 st.title("🚀 High-Performance Email Validator")
-st.markdown("Paste emails or upload a CSV. The app validates them concurrently, filters them intelligently, and lets you manage the results.")
+st.markdown("Paste emails or upload a CSV. The app normalizes, validates, and filters them intelligently.")
 
 if 'validation_results' not in st.session_state:
     st.session_state.validation_results = None
@@ -160,9 +170,9 @@ with col1:
 with col2:
     uploaded_file = st.file_uploader("Or upload a CSV file", type=["csv"], key="file_uploader")
 
-emails_to_validate = []
+raw_emails = []
 if emails_text:
-    emails_to_validate.extend([e.strip() for e in emails_text.splitlines() if e.strip()])
+    raw_emails.extend([e.strip() for e in emails_text.splitlines() if e.strip()])
 if uploaded_file:
     try:
         content = uploaded_file.read().decode("utf-8")
@@ -170,11 +180,13 @@ if uploaded_file:
         for row in csv_reader:
             for item in row:
                 found_emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', item)
-                emails_to_validate.extend(email.strip() for email in found_emails)
+                raw_emails.extend(email.strip() for email in found_emails)
     except Exception as e:
         st.error(f"❌ Error reading CSV file: {e}")
 
-unique_emails = list(dict.fromkeys(emails_to_validate))
+# Normalize and deduplicate emails upfront
+normalized_emails = [normalize_email(email) for email in raw_emails]
+unique_emails = list(dict.fromkeys(normalized_emails))
 
 if st.button(f"✅ Validate {len(unique_emails)} Emails", type="primary"):
     if not unique_emails:
