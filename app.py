@@ -46,7 +46,7 @@ DOMAINS_WITH_PLUS_ALIASING = {
 }
 DOMAINS_WITH_DOT_INSENSITIVITY = {"gmail.com", "googlemail.com"}
 
-MAX_USERNAME_LENGTH = 15
+MAX_USERNAME_LENGTH = 30
 
 # ==============================
 # EMAIL VALIDATION HELPERS
