@@ -19,21 +19,20 @@ st.set_page_config(layout="wide", page_title="Advanced Email Validator")
 
 # More comprehensive exclusion lists
 EXCLUDED_KEYWORDS = [
-    "support@", "info@", "contact@", "admin@", "sales@", "hello@", "team@", "hr@",
+    "support@", "sales@", "team@", "hr@",
     "jobs@", "careers@", "press@", "media@", "privacy@", "security@", "abuse@",
     "noreply@", "no-reply@", "unsubscribe@", "newsletter@", "feedback@", "test@",
-    "demo@", "example@", "dummy@", "john.doe@", "jane.doe@"
+    "demo@", "example@", "dummy@", "john.doe@",
 ]
 
 EXCLUDED_DOMAINS_SUBSTR = [
     "example.com", "test.com", "invalid.com", "localhost", "sentry", "wixpress",
-    "amazonaws", "fly.dev", "render.com", "cyclic.sh", "glitch.me", "temp-mail.org",
-    "10minutemail.com"
+    "amazonaws", "sentry", "wixpress", "sentry.wixpress.com", "latofonts", "address", "yourdomain", "err.abtm.io", "sentry-next", "wix", "mysite", "yoursite", "amazonaws", "localhost", "invalid", "example", "website", "2x.png"
 ]
 
 SKIP_EXTENSIONS = (
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp", ".pdf",
-    ".zip", ".tar.gz", ".css", ".js"
+    ".zip", ".tar.gz", ".css", ".js", ".png", ".jpg", ".jpeg", "the.benhawy", ".domain", "example"
 )
 
 # Domains to ignore for the "max 2 per domain" rule
