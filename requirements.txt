@@ -1,4 +1,4 @@
 streamlit
 pandas
 dnspython
-email-validator
+st-copy-to-clipboard
