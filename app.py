@@ -17,25 +17,26 @@ from st_copy_to_clipboard import st_copy_to_clipboard
 # ==============================
 st.set_page_config(layout="wide", page_title="Advanced Email Validator")
 
-# More comprehensive exclusion lists
+# Cleaned up and organized exclusion lists
 EXCLUDED_KEYWORDS = [
-    "support@", "sales@", "team@", "hr@",
-    "jobs@", "careers@", "press@", "media@", "privacy@", "security@", "abuse@",
-    "noreply@", "no-reply@", "unsubscribe@", "newsletter@", "feedback@", "test@",
-    "demo@", "example@", "dummy@", "john.doe@",
+    "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@",
+    "privacy@", "security@", "abuse@", "noreply@", "no-reply@", "unsubscribe@",
+    "newsletter@", "feedback@", "test@", "demo@", "example@", "dummy@", "john.doe@"
 ]
 
-EXCLUDED_DOMAINS_SUBSTR = [
+# Using a set for faster lookups and to remove duplicates
+EXCLUDED_DOMAINS_SUBSTR = set([
     "example.com", "test.com", "invalid.com", "localhost", "sentry", "wixpress",
-    "amazonaws", "sentry", "wixpress", "sentry.wixpress.com", "latofonts", "address", "yourdomain", "err.abtm.io", "sentry-next", "wix", "mysite", "yoursite", "amazonaws", "localhost", "invalid", "example", "website", "2x.png"
-]
+    "sentry.wixpress.com", "latofonts", "address", "yourdomain", "err.abtm.io",
+    "sentry-next", "wix", "mysite", "yoursite", "amazonaws", "website", "2x.png"
+])
 
-SKIP_EXTENSIONS = (
+SKIP_EXTENSIONS = set([
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp", ".pdf",
-    ".zip", ".tar.gz", ".css", ".js", ".png", ".jpg", ".jpeg", "the.benhawy", ".domain", "example"
-)
+    ".zip", ".tar.gz", ".css", ".js", "the.benhawy", ".domain", "example"
+])
 
-# Domains to ignore for the "max 2 per domain" rule
+# Domains to ignore for keyword and domain-count rules
 PUBLIC_DOMAINS = {
     "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com",
     "icloud.com", "protonmail.com", "zoho.com", "yandex.com", "gmx.com"
@@ -59,16 +60,33 @@ def get_exclusion_reason(email):
     Returns a string reason if excluded, otherwise None.
     """
     email_lower = email.lower()
-    for keyword in EXCLUDED_KEYWORDS:
-        if keyword in email_lower:
-            return f"Flagged by keyword: '{keyword.strip('@')}'"
-    domain = email_lower.split('@')[-1]
+    
+    # Safely split into username and domain
+    try:
+        username, domain = email_lower.split('@', 1)
+    except ValueError:
+        return "Invalid format (no @ symbol)" # Should be caught by syntax check, but safe to have
+
+    # Rule 1: Username length
+    if len(username) > MAX_USERNAME_LENGTH:
+        return f"Flagged: Username > {MAX_USERNAME_LENGTH} chars"
+
+    # Rule 2: Excluded keywords (ONLY for non-public domains) - THIS IS THE FIX
+    if domain not in PUBLIC_DOMAINS:
+        for keyword in EXCLUDED_KEYWORDS:
+            if keyword in email_lower:
+                return f"Flagged by keyword: '{keyword.strip('@')}'"
+
+    # Rule 3: Excluded domains
     for sub in EXCLUDED_DOMAINS_SUBSTR:
         if sub in domain:
             return f"Flagged by domain rule: '{sub}'"
+
+    # Rule 4: Excluded file extensions
     for ext in SKIP_EXTENSIONS:
         if email_lower.endswith(ext):
             return f"Flagged by file extension: '{ext}'"
+            
     return None
 
 @lru_cache(maxsize=1024)
