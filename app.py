@@ -233,7 +233,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style="text-align: center; font-size: 0.8em; color: grey;">
-        (c) Copywrite Sanchy 2025
+        © 2025 Sanchy. All rights reserved.
     </div>
     """,
     unsafe_allow_html=True
