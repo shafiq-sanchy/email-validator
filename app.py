@@ -51,17 +51,23 @@ def is_valid_syntax(email):
     regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     return re.match(regex, email)
 
-def is_excluded_by_keyword(email):
-    """Check if the email matches any exclusion criteria."""
+def get_exclusion_reason(email):
+    """
+    Checks if an email matches exclusion criteria and returns the reason.
+    Returns a string reason if excluded, otherwise None.
+    """
     email_lower = email.lower()
-    if any(keyword in email_lower for keyword in EXCLUDED_KEYWORDS):
-        return True
+    for keyword in EXCLUDED_KEYWORDS:
+        if keyword in email_lower:
+            return f"Flagged by keyword: '{keyword.strip('@')}'"
     domain = email_lower.split('@')[-1]
-    if any(sub in domain for sub in EXCLUDED_DOMAINS_SUBSTR):
-        return True
-    if email_lower.endswith(SKIP_EXTENSIONS):
-        return True
-    return False
+    for sub in EXCLUDED_DOMAINS_SUBSTR:
+        if sub in domain:
+            return f"Flagged by domain rule: '{sub}'"
+    for ext in SKIP_EXTENSIONS:
+        if email_lower.endswith(ext):
+            return f"Flagged by file extension: '{ext}'"
+    return None
 
 @lru_cache(maxsize=1024)
 def has_mx_record(domain):
@@ -78,16 +84,13 @@ def smtp_check(email):
     try:
         mx_records = dns.resolver.resolve(domain, 'MX')
         mx_record = str(mx_records[0].exchange)
-        
         with smtplib.SMTP(timeout=5) as server:
             server.connect(mx_record)
             server.helo(socket.gethostname())
             server.mail('test@example.com')
             code, _ = server.rcpt(email)
-            
             if code == 250:
                 return "Valid"
-            # Consider common "user unknown" codes as invalid
             elif code in [550, 551, 553, 554]:
                 return "Mailbox Not Found"
             else:
@@ -102,11 +105,9 @@ def validate_email(email):
     email = email.strip()
     if not is_valid_syntax(email):
         return {"email": email, "status": "Invalid Syntax"}
-
     domain = email.split('@')[-1]
     if not has_mx_record(domain):
         return {"email": email, "status": "No MX Record"}
-
     smtp_status = smtp_check(email)
     return {"email": email, "status": smtp_status}
 
@@ -114,17 +115,14 @@ def limit_emails_per_domain(emails, max_per_domain=2):
     """Filters a list of emails to ensure no more than max_per_domain from any one domain."""
     domain_counts = defaultdict(int)
     limited_emails = []
-    
     for email in emails:
         domain = email.split('@')[1].lower()
         if domain in PUBLIC_DOMAINS:
             limited_emails.append(email)
             continue
-            
         if domain_counts[domain] < max_per_domain:
             limited_emails.append(email)
             domain_counts[domain] += 1
-            
     return limited_emails
 
 # ==============================
@@ -165,7 +163,6 @@ if st.button(f"✅ Validate {len(unique_emails)} Emails", type="primary"):
         results = []
         progress_bar = st.progress(0, text="Starting validation...")
         total_emails = len(unique_emails)
-
         with ThreadPoolExecutor(max_workers=50) as executor:
             future_to_email = {executor.submit(validate_email, email): email for email in unique_emails}
             for i, future in enumerate(as_completed(future_to_email)):
@@ -175,7 +172,6 @@ if st.button(f"✅ Validate {len(unique_emails)} Emails", type="primary"):
                     email = future_to_email[future]
                     results.append({"email": email, "status": f"Error: {exc}"})
                 progress_bar.progress((i + 1) / total_emails, text=f"Validating email {i+1}/{total_emails}")
-        
         st.session_state.validation_results = results
         st.success("Validation complete!")
 
@@ -184,50 +180,67 @@ if st.session_state.validation_results:
     
     technically_valid = [res["email"] for res in results if "Valid" in res["status"]]
     
-    initially_excluded = [email for email in technically_valid if is_excluded_by_keyword(email)]
-    pre_filtered_valid = [email for email in technically_valid if not is_excluded_by_keyword(email)]
-    
+    initially_excluded_emails = []
+    exclusion_reasons = []
+    pre_filtered_valid = []
+
+    for email in technically_valid:
+        reason = get_exclusion_reason(email)
+        if reason:
+            initially_excluded_emails.append(email)
+            exclusion_reasons.append(reason)
+        else:
+            pre_filtered_valid.append(email)
+            
     st.subheader("Excluded Emails")
-    st.write("These emails were flagged by your keywords. Select any you wish to include in the final list.")
+    st.write("These emails were flagged by your keywords. Review the reason and select any you wish to include.")
     
-    excluded_df = pd.DataFrame({"include": [False] * len(initially_excluded), "email": initially_excluded})
-    edited_excluded_df = st.data_editor(
-        excluded_df,
-        key="excluded_editor",
-        hide_index=True,
-        use_container_width=True
-    )
-    
-    emails_to_reinclude = edited_excluded_df[edited_excluded_df["include"]]["email"].tolist()
-    
+    if initially_excluded_emails:
+        excluded_df = pd.DataFrame({
+            "include": [False] * len(initially_excluded_emails),
+            "email": initially_excluded_emails,
+            "reason": exclusion_reasons
+        })
+        edited_excluded_df = st.data_editor(
+            excluded_df,
+            column_config={"include": st.column_config.CheckboxColumn(required=True)},
+            key="excluded_editor",
+            hide_index=True,
+            use_container_width=True
+        )
+        emails_to_reinclude = edited_excluded_df[edited_excluded_df["include"]]["email"].tolist()
+    else:
+        st.info("No emails were flagged by the exclusion rules.")
+        emails_to_reinclude = []
+
     final_valid_list = pre_filtered_valid + emails_to_reinclude
     final_limited_list = limit_emails_per_domain(final_valid_list, max_per_domain=2)
     
     st.subheader("✅ Final Validated & Filtered Emails")
     st.metric("Total Emails Ready for Download/Copy", len(final_limited_list))
 
-    st.dataframe(pd.DataFrame({"email": final_limited_list}), use_container_width=True, hide_index=True)
-    
-    col3, col4 = st.columns(2)
-    with col3:
-        final_emails_str = "\n".join(final_limited_list)
-        if final_limited_list:
+    if final_limited_list:
+        st.dataframe(pd.DataFrame({"email": final_limited_list}), use_container_width=True, hide_index=True)
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            final_emails_str = "\n".join(final_limited_list)
             st_copy_to_clipboard(final_emails_str, "📋 Copy Valid Emails")
-
-    with col4:
-        csv_output = io.StringIO()
-        csv_writer = csv.writer(csv_output)
-        csv_writer.writerow(["email"])
-        for email in final_limited_list:
-            csv_writer.writerow([email])
-        csv_data = csv_output.getvalue()
-
-        st.download_button(
-            label="📥 Download as CSV",
-            data=csv_data,
-            file_name="validated_and_filtered_emails.csv",
-            mime="text/csv",
-        )
+        with col4:
+            csv_output = io.StringIO()
+            csv_writer = csv.writer(csv_output)
+            csv_writer.writerow(["email"])
+            for email in final_limited_list:
+                csv_writer.writerow([email])
+            csv_data = csv_output.getvalue()
+            st.download_button(
+                label="📥 Download as CSV",
+                data=csv_data,
+                file_name="validated_and_filtered_emails.csv",
+                mime="text/csv",
+            )
+    else:
+        st.warning("No valid emails to display after filtering.")
 
 st.markdown("---")
 st.markdown(
