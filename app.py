@@ -21,7 +21,7 @@ st.set_page_config(layout="wide", page_title="Advanced Email Validator")
 EXCLUDED_KEYWORDS = [
     "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@",
     "privacy@", "security@", "abuse@", "noreply@", "no-reply@", "unsubscribe@",
-    "newsletter@", "feedback@", "test@", "demo@", "example@", "dummy@", "john.doe@"
+    "newsletter@", "feedback@", "test@", "demo@", "example@", "dummy@", "yourname@", "youremail@", "john.doe@"
 ]
 
 EXCLUDED_DOMAINS_SUBSTR = set([
@@ -148,6 +148,10 @@ def limit_emails_per_domain(emails, max_per_domain=2):
     for email in emails:
         domain = email.split('@')[1].lower()
         if domain in PUBLIC_DOMAINS:
+            limited_emails.append(email)
+            continue
+        # Condition 2 (NEW): If it's an educational domain (.edu), always include it.
+        if domain.endswith('.edu'):
             limited_emails.append(email)
             continue
         if domain_counts[domain] < max_per_domain:
