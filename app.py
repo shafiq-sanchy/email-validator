@@ -19,15 +19,15 @@ st.set_page_config(layout="wide", page_title="Advanced Email Validator")
 
 # Exclusion lists
 EXCLUDED_KEYWORDS = [
-    "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@",
-    "privacy@", "security@", "abuse@", "noreply@", "no-reply@", "unsubscribe@",
+    "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@", "partnerprogram@", "reservations@", "enquiries@",
+    "privacy@", "security@", "abuse@", "noreply@", "no-reply@", "unsubscribe@", "your@", "yourfriend@", "yourfriends@", "name@",
     "newsletter@", "feedback@", "test@", "demo@", "example@", "dummy@", "yourname@", "youremail@", "john.doe@"
 ]
 
 EXCLUDED_DOMAINS_SUBSTR = set([
-    "example.com", "test.com", "invalid.com", "localhost", "sentry", "wixpress",
+    "example.com", "test.com", "invalid.com", "localhost", "sentry", "wixpress", "domain.com",
     "sentry.wixpress.com", "latofonts", "address", "yourdomain", "err.abtm.io",
-    "sentry-next", "wix", "mysite", "yoursite", "amazonaws", "website", "2x.png"
+    "sentry-next", "wix", "mysite", "yoursite", "amazonaws", "website.com", "2x.png"
 ])
 
 SKIP_EXTENSIONS = set([
