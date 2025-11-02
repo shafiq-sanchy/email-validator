@@ -19,7 +19,7 @@ st.set_page_config(layout="wide", page_title="Advanced Email Validator")
 
 # Exclusion lists
 EXCLUDED_KEYWORDS = [
-    "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@", "partnerprogram@", "reservations@", "enquiries@",
+    "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@", "partnerprogram@", "reservations@", "enquiries@", "copywrite@", "safety@",
     "privacy@", "security@", "abuse@", "noreply@", "no-reply@", "unsubscribe@", "your@", "yourfriend@", "yourfriends@", "name@",
     "newsletter@", "feedback@", "test@", "demo@", "example@", "dummy@", "yourname@", "youremail@", "abuse@", "dmca@", "security@", "stop", "noreply@", "no-reply@", "bot@", "john.doe@"
 ]
