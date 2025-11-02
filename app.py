@@ -19,14 +19,14 @@ st.set_page_config(layout="wide", page_title="Advanced Email Validator")
 
 # Exclusion lists
 EXCLUDED_KEYWORDS = [
-    "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@", "partnerprogram@", "reservations@", "enquiries@", "copywrite@", "safety@",
-    "privacy@", "security@", "abuse@", "noreply@", "no-reply@", "unsubscribe@", "your@", "yourfriend@", "yourfriends@", "name@", "filter@",
+    "support@", "sales@", "team@", "hr@", "jobs@", "careers@", "press@", "media@", "partnerprogram@", "reservations@", "copywrite@", "safety@", "pressinquiries@",
+    "privacy@", "security@", "abuse@", "noreply@", "no-reply@", "unsubscribe@", "your@", "yourfriend@", "yourfriends@", "name@", "filter@", "example-email@", "copyright@", "supporte@",
     "newsletter@", "feedback@", "test@", "demo@", "example@", "dummy@", "yourname@", "youremail@", "abuse@", "dmca@", "security@", "stop", "noreply@", "no-reply@", "bot@", "john.doe@"
 ]
 
 EXCLUDED_DOMAINS_SUBSTR = set([
-    "example.com", "test.com", "invalid.com", "localhost", "sentry", "wixpress", "domain.com",
-    "sentry.wixpress.com", "latofonts", "address", "yourdomain", "err.abtm.io",
+    "example.com", "test.com", "invalid.com", "localhost", "sentry", "wixpress", "domain.com", "yourdomin.com",
+    "sentry.wixpress.com", "latofonts", "address", "yourdomain", "err.abtm.io", "yourmail.com",
     "sentry-next", "wix", "mysite", "yoursite", "amazonaws", "website.com", "2x.png"
 ])
 
